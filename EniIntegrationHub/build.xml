@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project name="EniIntegrationHub" default="build">
+	
+	<property name="config.dir" location="conf" />
+	<property name="eni.config.dir" location="dist/eni/conf" />
+		
+	<patternset id="libraries.patternset" />
+    <path id="compile.classpath">
+        <fileset dir="WebContent/WEB-INF/lib">
+            <include name="*.jar"/>
+        </fileset>
+    </path>
+     
+    <target name="init">
+        <mkdir dir="build/classes"/>
+        <mkdir dir="dist" />
+    	<mkdir dir="${eni.config.dir}" />
+    </target>
+     
+    <target name="compile" depends="init" >
+        <javac destdir="build/classes" debug="true" srcdir="src">
+            <classpath refid="compile.classpath"/>
+        </javac>
+    </target>
+	<pathconvert property="manifest.classpath" pathsep=" ">
+		<path refid="compile.classpath" />
+		<mapper>
+			<chainedmapper>
+				<flattenmapper />
+				<globmapper from="*.jar" to="lib/*.jar" />
+			</chainedmapper>
+		</mapper>
+	</pathconvert>
+    <target name="war" depends="compile">
+		<delete file="dist/EniIntegrationHub.war"/>
+		<delete file="MANIFEST.MF"/>
+		<property name="version.num" value="1.0.0"/>
+		<buildnumber file="build.num"/>
+        <war destfile="dist/EniIntegrationHub_${version.num}.war" webxml="WebContent/WEB-INF/web.xml">
+            <fileset dir="WebContent"/>
+            <manifest>
+				<attribute name="Main-Class" value="com.btmglobal.hub.web.system.BtmHubApplicationContextListener" />
+				<attribute name="Class-Path" value="${manifest.classpath}" />
+				<attribute name="Implementation-Version" value="${version.num}-b${build.number}"/>
+			</manifest>
+            <classes dir="build/classes"/>
+        </war>
+    	<copydir src="${config.dir}" dest="${eni.config.dir}" />
+    </target>
+     
+    <target name="clean">
+        <delete dir="dist" />
+        <delete dir="build" />
+    </target>
+	<target name="build" depends="war">
+				<description>Main target for full build</description>
+	</target>
+     
+</project>

@@ -1,0 +1,8 @@
+# Configurations for Order Hub Db
+order.hub.db.url=jdbc:sqlserver://vnevenxou05.clienttest.btmgcs.com:1433;databaseName=ENI_HUB
+order.hub.db.user=dbuser
+order.hub.db.password=YnRtZ2NzQDEyMw==
+
+# Configurations for Order Hub Apis
+order.hub.api.user=apiuser
+order.hub.api.password=QnRtZ2Nzdm40ZXZlbg==

@@ -1,0 +1,384 @@
+/**
+ *CONFIDENTIAL AND PROPRIETARY SOURCE CODE. 
+ * 
+ * Use and distribution of this code is subject to applicable 
+ * licenses and the permission of the code owner. This notice 
+ * does not indicate the actual or intended publication of 
+ * this source code.
+ * 
+ * Portions developed for Event Network by BTM Global Consulting
+ * LLC and are the property of Event Network.
+ * 
+ * ===== BTM Modification ===========================================
+ * Bug#         ddMMyy          Description
+ * BZ47094      201021          [Intergration] Xstore Integrated eCommerce Orders                                                                   
+ *===================================================================
+ */
+
+package eni.hub.rest;
+
+import java.math.BigDecimal;
+import java.sql.Connection;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+
+import javax.ws.rs.Consumes;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+
+import org.apache.log4j.Logger;
+import org.json.JSONObject;
+
+import eni.hub.order.util.EniOrderHubConstants;
+import eni.hub.order.db.EniOrderHubDBHelper;
+import eni.hub.order.db.obj.EniOrderHubCustomerModel;
+import eni.hub.order.db.obj.EniOrderHubOrderLineModel;
+import eni.hub.order.db.obj.EniOrderHubOrderModel;
+import eni.hub.order.model.EniOrderHubOrderInfo;
+import eni.hub.order.util.EniOrderHubUtils;
+import eni.magento.model.EniItem;
+import eni.magento.model.EniOrder;
+import eni.magento.model.EniResponseModel;
+
+/**
+ * 
+ */
+@Path("/addorUpdateOrder")
+public class EniOrderHubRestService extends EniOrderHubRestUtils{
+
+	public static Logger LOG = Logger.getLogger(EniOrderHubDBHelper.class);
+	private String message = "Order has created successfully.";
+
+	private String messageOrderexists = "Order already exists.";
+
+	private int organizationId = 1;
+
+	public EniOrderHubRestService() {
+		try {
+			this.organizationId = Integer
+					.parseInt(EniOrderHubUtils.getConfigProperties(EniOrderHubConstants.ORDER_HUB_ORG_ID, "1").toString());
+		} catch (Exception e) {
+			LOG.error("Exception" + e.getMessage());
+		}
+
+	}
+
+	// Retrieve order info from E-Commerce to insert to Hub tables
+	// Return error code & message to notify for E-Commerce
+	// @Path("{orderNo}/{customerName}/{store}/{item}/{quantity}/{taxInfo}/{balance}")
+	@PUT
+	@Consumes(MediaType.APPLICATION_JSON)
+	public Response addOrUpdateOrder(String requestBody) {
+		int resultOrder = 0;
+		int resultOrderLine = 0;
+		int resultOrderCustomer = 0;
+		Response orderExists = null;
+		LOG.info(">> +[addOrUpdateOrder] START");
+		// Parse order info
+		LOG.info(">>>> +[parseOrderInfo] START");
+		List<EniOrderHubOrderInfo>listOrderInfo = parseOrderInfo(requestBody);
+        for(EniOrderHubOrderInfo orderInfo : listOrderInfo) {
+        	if (orderInfo == null || orderInfo.getOrder() == null) {
+    			LOG.info("<<<< +[parseOrderInfo] END");
+    			LOG.info("<< +[addOrUpdateOrder] END");
+    			return Response.status(400).entity(this.message).build();
+    		}
+    		LOG.info("<<<< +[parseOrderInfo] END");
+    		LOG.info(">>>> +[validateOrderData] START");
+    		boolean isValid = this.validateOrderData(orderInfo);
+    		// If order data from E-Commerce is invalid
+    		// set error code and return message back to it.
+    		if (!isValid) {
+    			LOG.info("<<<< +[validateOrderData] END");
+    			LOG.info("<< +[addOrUpdateOrder] END");
+    			return Response.status(201).entity(this.message).build();
+    		}
+    		
+    		LOG.info("<<<< +[validateOrderData] END");
+    		EniOrderHubOrderModel orderModel = orderInfo.getOrder();
+    		
+    		try {
+    		
+    			// Step1 - Open connection to database
+    			LOG.info(">>> START STEP1-OPEN CONNECTION TO DATABASE");
+    			Connection conn = EniOrderHubDBHelper.getInstance().openConnection();
+    			LOG.info("<<< END STEP1-OPEN CONNECTION TO DATABASE");
+
+    			// Step2 - Begin transaction with connection to database
+    			LOG.info(">>> START STEP2-BEGIN TRANSACTION TO DATABASE");
+    			EniOrderHubDBHelper.getInstance().beginTransaction(conn);
+    			LOG.info("<<< END STEP2-BEGIN TRANSACTION TO DATABASE");
+    			
+    			// Check Orderstatus
+        		boolean isOrderStatusValid = validateOrderStatus(orderModel.getStatusCode());
+        		if(checkOrderExist(conn, orderModel) == true && isOrderStatusValid == false) {
+        			LOG.info("<<<< +[Check Orderstatu] END");
+        			LOG.info("<< +[addOrUpdateOrder] END");
+        			return Response.status(201).entity(this.message).build();
+        		}
+    			// Step3 - Check Insert data into hub_xom_order table of database
+    			LOG.info(">>> START STEP3-CHECK INSERT DATA INTO HUB_XOM_ORDER TABLE");
+    			Boolean checkExistOrder = checkOrderExist(conn, orderModel);
+    			orderModel.setOrderDate(new Date());
+    			if(checkExistOrder == false) {
+    				orderModel.setStatusCode(NEW_ORDER);
+    			}else {
+    				orderModel.setStatusCode(getOrderStatus(orderModel.getStatusCode()));
+    			}
+    			orderModel.setOrderType(PICK_UP);
+    			if(checkOrderExist(conn, orderModel) == false) {
+    				resultOrder = EniOrderHubDBHelper.getInstance().insertDataEniOrder(conn, orderModel);
+    			}else {
+    				resultOrder = EniOrderHubDBHelper.getInstance().updateStatusEniOrder(conn, orderModel);
+    			}
+    			LOG.info("<<< END STEP3-CHECK INSERT DATA INTO ENI_HUB_ORDER TABLE");
+
+    			// Step4 - Check Insert data into hub_xom_order_line table of database
+    			LOG.info(">>> START STEP4-CHECK INSERT DATA INTO ENI_HUB_ORDER_LINE TABLE");
+    			Map<Integer, EniOrderHubOrderLineModel> items = orderInfo.getItem();
+    			if (items != null && items.size() > 0) {
+    				for (Entry<Integer, EniOrderHubOrderLineModel> item : items.entrySet()) {
+    					int lineNo = item.getKey();
+    					item.getValue().setLineNo(lineNo);
+    					item.getValue().setOrderId(orderInfo.getOrder().getOrderId());
+    					if(checkExistOrder == false) {
+    						item.getValue().setStatusCode(NEW_ORDER);
+        					resultOrderLine += EniOrderHubDBHelper.getInstance().insertDataOrderLine(conn,
+        							item.getValue());
+    					}else {
+    						item.getValue().setStatusCode(getOrderStatus(orderModel.getStatusCode()));
+    						resultOrderLine += EniOrderHubDBHelper.getInstance().updateStatusOrderLine(conn,
+        							item.getValue());
+    					}
+    					
+    				}
+    			}
+    			LOG.info("<<< END STEP4-CHECK INSERT DATA INTO HUB_XOM_ORDER LINE TABLE");
+    			// Step5 - Check Insert data into [dbo].[hub_xom_customer] table of 
+    			// database
+    			LOG.info(">>> START STEP5-CHECK INSERT DATA INTO HUB_XOM_ORDER TABLE");
+    			EniOrderHubCustomerModel customerInfo = orderInfo.getCustomer();
+    			customerInfo.setOrderId(orderInfo.getOrder().getOrderId());
+    			if(checkExistOrder == false) {
+    				resultOrderCustomer = EniOrderHubDBHelper.getInstance().insertDataOrderCustomer(conn, customerInfo);
+    			}else {
+    				resultOrderCustomer = 1;
+    			}
+    			LOG.info("<<< END STEP5-CHECK INSERT DATA INTO HUB_XOM_ORDER TABLE");
+				
+    			if (resultOrder != 0 && resultOrderLine != 0 && resultOrderCustomer != 0) {
+    				// Step6 - Commit transaction to insert data into hub_xom_order,
+    				// hub_xom_order_line and hub_xom_customer table of database
+    				LOG.info(
+    						">>> START STEP6-COMMIT TRANSACTION TO INSERT DATA HUB_XOM_ORDE, HUB_XOM_ORDER_LINE AND HUB_XOM_CUSTOMER table TO DATABASE");
+    				EniOrderHubDBHelper.getInstance().commitTransaction(conn);
+    				LOG.info(
+    						"<<< END STEP6-COMMIT TRANSACTION TO INSERT DATA HUB_XOM_ORDE, HUB_XOM_ORDER_LINE AND HUB_XOM_CUSTOMER table TO DATABASE");
+    			} else {
+    				LOG.info(">>> STEP6.1-ORDER ALREADY EXISTS!");
+    				orderExists = Response.status(400).entity(this.messageOrderexists).build();
+    			}
+    			// Step7 - Close connection to database
+    			LOG.info(">>> START STEP7-CLOSE CONNECTION TO DATABASE");
+    			EniOrderHubDBHelper.getInstance().closeConnection(conn);
+    			LOG.info("<<< END STEP7-CLOSE CONNECTION TO DATABASE");
+
+    			if (orderExists != null) {
+    				return orderExists;
+    			}
+
+    		} catch (Exception e) {
+    			LOG.error(e.getMessage());
+    		}
+    		LOG.info("<< +[addOrUpdateOrder] END");
+        }
+
+		return Response.status(200).entity(this.message).build();
+	}
+
+	/**
+	 * Parse response to JSON
+	 * 
+	 * @param requestBody
+	 * @return obj
+	 */
+	private JSONObject parseResponseToJSON(String requestBody) {
+
+		LOG.info(">>>> +[parseResponseToJSON] START");
+		JSONObject obj = null;
+		try {
+			obj = new JSONObject(requestBody);
+		} catch (Exception e) {
+			LOG.warn("parseResponseToJSON - Error bad request: - " + e.toString());
+			this.message = "Error bad request: - " + e.toString();
+		}
+		LOG.info("<<<< +[parseResponseToJSON] END");
+		return obj;
+	}
+
+	/**
+	 * 
+	 * @param requestBody
+	 * @return orderInfo
+	 */
+	private List<EniOrderHubOrderInfo> parseOrderInfo(String requestBody) {
+		List<EniOrderHubOrderInfo> listOrderInfo = new ArrayList<EniOrderHubOrderInfo>();
+		LOG.info(">>>> +[parseOrderInfo] START");
+		
+		EniResponseModel reponseModel = getResponseModel(parseResponseToJSON(requestBody));
+		List<EniOrder> listObjOrders = reponseModel.getOrders();
+	    for(EniOrder eniOrder : listObjOrders ) {
+	    	EniOrderHubOrderInfo orderInfo = null;
+			EniOrderHubCustomerModel customerOrderInfo = null;
+			EniOrderHubOrderLineModel itemOrderInfo = null;
+			JSONObject objOrderInfo = parseResponseToJSON(requestBody);
+			if (objOrderInfo == null) {
+				return listOrderInfo;
+			}
+			try {
+				// Parse orderInfo
+				orderInfo = new EniOrderHubOrderInfo();
+				EniOrderHubOrderModel orderModel = new EniOrderHubOrderModel();
+				orderModel.setOrderId(eniOrder.getOrderNumber());
+				orderModel.setOrderLocId(getStoreIdFromOrderNumber(eniOrder.getOrderNumber()));;
+				orderModel.setBalanceDue(null);
+				orderModel.setSubtotal(null);
+				orderModel.setTaxAmount(doubleToBigDecimal(eniOrder.getTaxAmount(),"orderTaxAmount"));
+				orderModel.setTotal(doubleToBigDecimal(eniOrder.getOrderTotal(),"OrderTotal"));
+				orderModel.setStatusCode(eniOrder.getOrderStatus());
+				orderInfo.setOrder(orderModel);
+				// Parse customerOrderInfo
+				customerOrderInfo = new EniOrderHubCustomerModel();
+				customerOrderInfo.setCustomerId(integerToString(eniOrder.getCustomerId(),"CustomerId"));
+				customerOrderInfo.setOrderId(eniOrder.getOrderNumber());
+				customerOrderInfo.setEmailaddress(eniOrder.getCustomerEmail());
+				customerOrderInfo.setFirstName(eniOrder.getShipTo().getName());
+				customerOrderInfo.setLastName(null);
+				customerOrderInfo.setMiddleName(null);
+				customerOrderInfo.setPrefix(null);
+				customerOrderInfo.setSuffix(null);
+				/*
+				 * if (!StringUtils.isEmpty(eniOrder.getCustomerFirstname()) &&
+				 * !StringUtils.isEmpty(eniOrder.getCustomerLastname())) {
+				 * customerOrderInfo.setFirstName(eniOrder.getCustomerFirstname());
+				 * customerOrderInfo.setLastName(eniOrder.getCustomerLastname()); } else { LOG.
+				 * warn("parseOrderInfo - Error bad request: - The firstName or lastName are the required fields."
+				 * ); this.message =
+				 * "Error bad request: - The firstName or lastName are the required fields.";
+				 * return listOrderInfo = null; }
+				 */
+
+				orderInfo.setCustomer(customerOrderInfo);
+				// Parse itemOrderInfo
+				List<EniItem> arrayItem = eniOrder.getItems();
+				Map<Integer, EniOrderHubOrderLineModel> items = new HashMap<>();
+				int index = arrayItem.size();
+				for (int i = 0; i < index; i++) {
+					EniItem objItem = arrayItem.get(i);
+					itemOrderInfo = new EniOrderHubOrderLineModel();
+					itemOrderInfo.setItemId(integerToString(objItem.getOrderItemId(), "OrderItemId") );
+					itemOrderInfo.setQuantity(integerToBigdecimal(objItem.getQuantity(),"itemQuantity"));
+					itemOrderInfo.setUnitPrice(doubleToBigDecimal(objItem.getUnitPrice(), "unitPrice") );
+					itemOrderInfo.setTaxAmount(doubleToBigDecimal(objItem.getTaxAmount(),"itemTaxAmount"));
+					itemOrderInfo.setVoidFlag(false);
+					itemOrderInfo.setFulfillmentType(DELIVERY);
+					items.put(i + 1, itemOrderInfo);
+				}
+				orderInfo.setItem(items);
+			} catch (Exception e) {
+				LOG.warn("parseOrderInfo - Error bad request: - " + e.toString());
+				this.message = "Error bad request: - " + e.toString();
+				return listOrderInfo = null;
+			}
+			listOrderInfo.add(orderInfo);
+	    }
+		
+		
+		LOG.info("<<<< +[parseOrderInfo] END");
+		return listOrderInfo;
+	}
+
+	/**
+	 * validate order info and item info
+	 * @param orderInfo
+	 * @return
+	 */
+	private boolean validateOrderData(EniOrderHubOrderInfo orderInfo) {
+
+		LOG.info(">>>> +[validateOrderData] START");
+		boolean isValid = true;
+		if (orderInfo.getOrder() == null) {
+			isValid = false;
+			this.message = "Error: Order is empty.";
+			return isValid;
+		}
+		String orderNo = orderInfo.getOrder().getOrderId();
+		String store = orderInfo.getOrder().getOrderLocId();
+		// String taxInfo = orderInfo.getTaxInfo();
+		String customerName = null;
+		String itemId = null;
+		BigDecimal quantity = BigDecimal.ZERO;
+		// Validate order info
+		if (orderNo == null || "".equals(orderNo)) {
+			isValid = false;
+			this.message = "Error: Order number is empty.";
+			return isValid;
+		}
+		if (store == null || "".equals(store)) {
+			isValid = false;
+			this.message = "Error: Store is empty.";
+			return isValid;
+		}
+		/*
+		 * if (taxInfo == null || "".equals(taxInfo)) { isValid = false; this.message =
+		 * "Error: Tax information is empty."; return isValid; }
+		 */
+		// Validate customer info
+		EniOrderHubCustomerModel customer = orderInfo.getCustomer();
+		if (customer != null) {
+			customerName = customer.getCustomerName();
+			if (customerName == null || "".equals(customerName)) {
+				isValid = false;
+				this.message = "Error: Customer name is empty.";
+				return isValid;
+			}
+		} else {
+			this.message = "Error: Missing customer info.";
+		}
+		// Validate items info
+		Map<Integer, EniOrderHubOrderLineModel> items = orderInfo.getItem();
+		if (items != null && items.size() > 0) {
+			for (Entry<Integer, EniOrderHubOrderLineModel> item : items.entrySet()) {
+				itemId = item.getValue().getItemId();
+				quantity = item.getValue().getQuantity();
+
+				if (itemId == null || "".equals(itemId)) {
+					isValid = false;
+					this.message = "Error: Index line: " + item.getKey() + ". Item id  is empty.";
+					return isValid;
+				}
+				if (quantity.compareTo(BigDecimal.ZERO) < 0) {
+					isValid = false;
+					this.message = "Error: Index line: " + item.getKey() + ". Quantiy is lower than zero.";
+					return isValid;
+				}
+			}
+		} else {
+			this.message = "Error: Missing items info.";
+		}
+		LOG.info("<<<< +[validateOrderData] END");
+		return isValid;
+	}
+	private boolean checkOrderExist(Connection conn, EniOrderHubOrderModel orderModel) {
+		boolean orderExist = false;
+		orderExist = EniOrderHubDBHelper.getInstance().checkExistOrder(conn, orderModel);
+		return orderExist;
+	}
+
+}

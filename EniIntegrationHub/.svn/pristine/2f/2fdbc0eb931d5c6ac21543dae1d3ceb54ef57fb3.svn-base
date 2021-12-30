@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+/**
+ * CONFIDENTIAL AND PROPRIETARY SOURCE CODE. 
+ * 
+ * Use and distribution of this code is subject to applicable 
+ * licenses and the permission of the code owner.  This notice 
+ * does not indicate the actual or intended publication of 
+ * this source code.
+ * 
+ * Portions developed for See's Candies by BTM Global Consulting
+ * LLC and are the property of See's Candies.
+ * 
+ * ===== BTM Modification ===========================================
+ * Req/Bug ID#          ddMMyy    Description
+ * 
+ * ==================================================================
+ */
+-->
+<!DOCTYPE log4j:configuration PUBLIC "-//APACHE//DTD LOG4J 1.2//EN" "http://logging.apache.org/log4j/1.2/apidocs/org/apache/log4j/xml/doc-files/log4j.dtd">
+
+<log4j:configuration xmlns:log4j="http://jakarta.apache.org/log4j/">
+  <!-- Only use this appender in debugging mode -->
+  <appender name="file" class="org.apache.log4j.RollingFileAppender">
+    <param name="file" value="${jetty.home}/logs/eni_hub.log" />
+    <param name="MaxFileSize" value="10MB" />
+                             <!-- Keep 30 backup file -->
+    <param name="MaxBackupIndex" value="30" />
+    <layout class="org.apache.log4j.PatternLayout">
+      <param name="ConversionPattern" value="%d %-5p [%c] %.1000m%n" />
+    </layout>
+  </appender>
+
+  <!-- For QuartzScheduler -->
+  <logger name="org.quartz">
+    <level value="info" />
+    <appender-ref ref="file" />
+  </logger>
+  <logger name="org.quartz.core.QuartzScheduler">
+    <level value="error" />
+  </logger>
+  <logger name="org.quartz.impl.StdSchedulerFactory">
+    <level value="error" />
+  </logger>
+  <logger name="org.quartz.core.SchedulerSignalerImpl">
+    <level value="error" />
+  </logger>
+  <logger name="org.quartz.simpl.RAMJobStore">
+    <level value="error" />
+  </logger>
+  <logger name="org.quartz.simpl.SimpleThreadPool">
+    <level value="error" />
+  </logger>
+
+  <!-- For Hub -->
+  <logger name="eni.hub.services.impl" additivity="false">
+    <level value="info" />
+    <appender-ref ref="file" />
+  </logger>
+  <logger name="eni.hub.handlers" additivity="false">
+    <level value="info" />
+    <appender-ref ref="file" />
+  </logger>
+  <logger name="eni.hub.rest" additivity="false">
+    <level value="info" />
+    <appender-ref ref="file" />
+  </logger>
+  <root>
+    <level value="info" />
+    <appender-ref ref="file" />
+  </root>
+</log4j:configuration>

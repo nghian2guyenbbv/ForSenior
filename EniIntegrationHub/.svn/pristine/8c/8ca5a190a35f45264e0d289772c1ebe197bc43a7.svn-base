@@ -1,0 +1,565 @@
+package eni.hub.rest;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.log4j.Logger;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.quartz.Trigger.CompletedExecutionInstruction;
+
+import eni.magento.model.AdvancedOptions;
+import eni.magento.model.BillTo;
+import eni.magento.model.CustomsItem;
+import eni.magento.model.EniItem;
+import eni.magento.model.EniOrder;
+import eni.magento.model.EniResponseModel;
+import eni.magento.model.EniWeight;
+import eni.magento.model.InsuranceOptions;
+import eni.magento.model.InternationalOptions;
+import eni.magento.model.ShipTo;
+
+public class EniOrderHubRestUtils {
+	Logger _logger = Logger.getLogger(EniOrderHubRestUtils.class);
+	public static final String PICK_UP ="PICKUP";
+	public static final String DELIVERY = "DELIVERY";
+	public static final String NEW_ORDER= "NEW_ORDER";
+	private String orderId = null;
+	private String orderNumber = null;
+	private String orderStatus = null;
+	private Integer customerId = null;
+	private String customerEmail = null;
+	private String name = null;
+	private String company = null;
+	private String street1 = null;
+	private String street2 = null;
+	private String street3 = null;
+	private String city = null;
+	private String state = null;
+	private String postalCode = null;
+	private String country = null;
+	private String phone = null;
+	private String orderItemId = "";
+	private String upc = null;
+	private String customerNotes = null;
+	private Boolean gift = null;
+	private String giftMessage = null;
+	private String requestedShippingService = null;
+	private String storeId = null;
+	private String  lineItemKey = null ;
+	private String sku = null ;
+	private String  imageUrl = null ;
+	private Double shippingAmount = null ;
+	private String warehouseLocation = null ;
+	private int productId = 0 ;
+	private String fulfillmentSku = null ;
+	private Boolean adjustment = null ;
+	private String createDate = null ;
+	private String modifyDate = null ;
+	private String billToname = null ;
+	private String billTocompany = null ;
+	private String billTostreet1 = null ;
+	private String billTostreet2 = null ;
+	private String billTostreet3 = null ;
+	private String billTocity = null ;
+	private String billTostate = null ;
+	private String billTopostalCode = null ;
+	private String billTocountry = null ;
+	private String billTophone = null ;
+	private String billToresidential = null ;
+	private String billToaddressVerified = null ;
+	private String shipToname = null ;
+	private String shipTocompany = null ;
+	private String shipTostreet1 = null ;
+	private String shipTostreet2 = null ;
+	private String shipTostreet3 = null ;
+	private String shipTocity = null ;
+	private String shipTostate = null ;
+	private String shipTopostalCode = null ;
+	private String shipTocountry = null ;
+	private String shipTophone = null ;
+	private Boolean shipToresidential = null ;
+	private String shipToaddressVerified = null ;
+	private int internationalOptioncustomsItemId = 0 ;
+	private String internationalOptiondescription = null ;
+	private int internationalOptionquantity = 0 ;
+	private Double internationalOptionvalue = null ;
+	private String internationalOptionharmonizedTariffCode = null ;
+	private String internationalOptioncountryOfOrigin = null ;
+	private int advancedOptionswarehouseId = 0 ;
+	private Boolean advancedOptionsnonMachinable = null ;
+	private Boolean advancedOptionssaturdayDelivery = null ;
+	private Boolean advancedOptionscontainsAlcohol = null ;
+	private Boolean advancedOptionsmergedOrSplit = null ;
+	private String advancedOptionsmergedIds = null ;
+	private String advancedOptionsparentId = null ;
+	private int advancedOptionsstoreId = 0 ;
+	private String advancedOptionscustomField1 = null ;
+	private String advancedOptionscustomField2 = null ;
+	private String advancedOptionscustomField3 = null ;
+	private String advancedOptionssource = null ;
+	private String advancedOptionsbillToParty = null ;
+	private String advancedOptionsbillToAccount = null ;
+	private String advancedOptionsbillToPostalCode = null ;
+	private String advancedOptionsbillToCountryCode = null ;
+	private String advancedOptionsbillToMyOtherAccount = null ;
+	private Integer quantity = null;
+	private Double unitPrice = null;
+	private Double taxAmount = null;
+	private BigDecimal grand_total = null;
+	private BigDecimal shipping_tax_amount = null;
+	private BigDecimal subtotal = null;
+	private BigDecimal tax_amount = null;
+	private BigDecimal total_due = null;
+	private BigDecimal shipping_incl_tax = null;
+	private BigDecimal weight = null;
+	private BigDecimal qty_ordered = null;
+	private BigDecimal original_price = null;
+	private BigDecimal item_tax_amount = null;
+	private BigDecimal price_incl_tax = null;
+	private String orderKey;
+	private String orderDate;
+	private String paymentDate;
+	private String shipByDate;
+	private String customerUsername;
+	private Double amountPaid;
+	private String internalNotes;
+	private String paymentMethod;
+	private String carrierCode;
+	private String serviceCode;
+	private String packageCode;
+	private String confirmation;
+	private String shipDate;
+	private String holdUntilDate;
+	private String dimensions;
+	private String tagIds;
+	private String userId;
+	private Boolean externallyFulfilled;
+	private String externallyFulfilledBy;
+	private String labelMessages;
+	private Double orderTotal;
+	private Double weightValue;
+	private String weightUnit;
+	private String provider;
+	private String insureShipment;
+	private String insuredValue;
+	private String contents;
+	private String nonDelivery;
+	private String insuranceOptionprovider;
+	private Boolean insuranceOptioninsureShipment;
+	private Double insuranceOptioninsuredValue;
+	private Double itemshippingAmount;
+	private Double itemtaxAmount;
+
+	public EniResponseModel getResponseModel(JSONObject orderJsonOb) {
+		EniResponseModel responseModel = new EniResponseModel();
+		JSONArray orderArray = orderJsonOb.getJSONArray("orders");
+		List<EniOrder>listOrder = new ArrayList<EniOrder>();
+		if(orderArray.length() ==0) {
+			return responseModel;
+		}
+		for (int i=0; i < orderArray.length();i++) {
+			Object orderOb = orderArray.get(i);
+			EniOrder eniOrder = new EniOrder();
+			JSONObject jsonOb = new JSONObject();
+			if(orderOb instanceof JSONObject) {
+				jsonOb = (JSONObject)orderOb;
+				orderId = getStringDataFromJsonOb("orderId", jsonOb);
+				orderNumber = getStringDataFromJsonOb("orderNumber", jsonOb);
+				orderKey = getStringDataFromJsonOb("orderKey", jsonOb);
+				orderDate = getStringDataFromJsonOb("orderDate", jsonOb);
+				createDate = getStringDataFromJsonOb("createDate", jsonOb);
+				modifyDate = getStringDataFromJsonOb("modifyDate", jsonOb);
+				paymentDate = getStringDataFromJsonOb("paymentDate", jsonOb);
+				shipByDate = getStringDataFromJsonOb("shipByDate", jsonOb);
+				orderStatus = getStringDataFromJsonOb("orderStatus", jsonOb);
+				customerId = getIntegerDataFromJsonOb("customerId", jsonOb);
+				customerUsername = getStringDataFromJsonOb("customerUsername", jsonOb);
+				customerEmail = getStringDataFromJsonOb("customerEmail", jsonOb);
+				amountPaid = getDoubleDataFromJsonOb("amountPaid", jsonOb);
+				shippingAmount = getDoubleDataFromJsonOb("shippingAmount", jsonOb);
+				customerNotes = getStringDataFromJsonOb("customerNotes", jsonOb);
+				internalNotes = getStringDataFromJsonOb("internalNotes", jsonOb);
+				gift = getBooleanDataFromJsonOb("gift", jsonOb);
+				giftMessage = getStringDataFromJsonOb("giftMessage", jsonOb);
+				paymentMethod = getStringDataFromJsonOb("paymentMethod", jsonOb);
+				requestedShippingService = getStringDataFromJsonOb("requestedShippingService", jsonOb);
+				carrierCode = getStringDataFromJsonOb("carrierCode", jsonOb);
+				serviceCode = getStringDataFromJsonOb("serviceCode", jsonOb);
+				packageCode = getStringDataFromJsonOb("packageCode", jsonOb);
+				confirmation = getStringDataFromJsonOb("confirmation", jsonOb);
+				shipDate = getStringDataFromJsonOb("shipDate", jsonOb);
+				holdUntilDate = getStringDataFromJsonOb("holdUntilDate", jsonOb);
+				dimensions = getStringDataFromJsonOb("dimensions", jsonOb);
+				tagIds = getStringDataFromJsonOb("tagIds", jsonOb);
+				userId = getStringDataFromJsonOb("userId", jsonOb);
+				externallyFulfilled = getBooleanDataFromJsonOb("externallyFulfilled", jsonOb);
+				externallyFulfilledBy = getStringDataFromJsonOb("externallyFulfilledBy", jsonOb);
+				labelMessages = getStringDataFromJsonOb("labelMessages", jsonOb);
+				orderTotal = getDoubleDataFromJsonOb("orderTotal", jsonOb);
+				taxAmount = getDoubleDataFromJsonOb("taxAmount", jsonOb);
+                // billTo
+				BillTo billto = new BillTo();
+				JSONObject billToOb = jsonOb.getJSONObject("billTo");
+				billToname = getStringDataFromJsonOb("name", billToOb);
+				billTocompany = getStringDataFromJsonOb("company", billToOb);
+				billTostreet1 = getStringDataFromJsonOb("street1", billToOb);
+				billTostreet2 = getStringDataFromJsonOb("street2", billToOb);
+				billTostreet3 = getStringDataFromJsonOb("street3", billToOb);
+				billTocity = getStringDataFromJsonOb("city", billToOb);
+				billTostate = getStringDataFromJsonOb("state", billToOb);
+				billTopostalCode = getStringDataFromJsonOb("postalCode", billToOb);
+				billTocountry = getStringDataFromJsonOb("country", billToOb);
+				billTophone = getStringDataFromJsonOb("phone", billToOb);
+				billToresidential = getStringDataFromJsonOb("residential", billToOb);
+				billToaddressVerified = getStringDataFromJsonOb("addressVerified", billToOb);
+				billto.setName(billToname);
+				billto.setCompany(billTocompany);
+				billto.setStreet1(billTostreet1);
+				billto.setStreet2(billTostreet2);
+				billto.setStreet3(billTostreet3);
+				billto.setCity(billTocity);
+				billto.setState(billTostate);
+				billto.setPostalCode(billTopostalCode);
+				billto.setCountry(billTocountry);
+				billto.setPhone(billTophone);
+				billto.setResidential(billToresidential);
+				billto.setAddressVerified(billToaddressVerified);;
+				//shipTo
+				ShipTo shipTo = new ShipTo();
+				JSONObject shipToOb = jsonOb.getJSONObject("shipTo");
+				shipToname = getStringDataFromJsonOb("name", shipToOb);
+				shipTocompany = getStringDataFromJsonOb("company", shipToOb);
+				shipTostreet1 = getStringDataFromJsonOb("street1", shipToOb);
+				shipTostreet2 = getStringDataFromJsonOb("street2", shipToOb);
+				shipTostreet3 = getStringDataFromJsonOb("street3", shipToOb);
+				shipTocity = getStringDataFromJsonOb("city", shipToOb);
+				shipTostate = getStringDataFromJsonOb("state", shipToOb);
+				shipTopostalCode = getStringDataFromJsonOb("postalCode", shipToOb);
+				shipTocountry = getStringDataFromJsonOb("country", shipToOb);
+				shipTophone = getStringDataFromJsonOb("phone", shipToOb);
+				shipToresidential = getBooleanDataFromJsonOb("residential", shipToOb);
+				shipToaddressVerified = getStringDataFromJsonOb("addressVerified", shipToOb);
+				shipTo.setName(shipToname);
+				shipTo.setCompany(shipTocompany);
+				shipTo.setStreet1(shipTostreet1);
+				shipTo.setStreet2(shipTostreet2);
+				shipTo.setStreet3(shipTostreet3);
+				shipTo.setCity(shipTocity);
+				shipTo.setState(shipTostate);
+				shipTo.setPostalCode(shipTopostalCode);
+				shipTo.setCountry(shipTocountry);
+				shipTo.setPhone(shipTophone);
+				shipTo.setResidential(shipToresidential);
+				shipTo.setAddressVerified(shipToaddressVerified);;
+				JSONArray itemArray = jsonOb.getJSONArray("items");
+				List<EniItem> listItem = new ArrayList<EniItem>();
+				JSONObject itemJsonOb = new JSONObject();
+				if(itemArray.length() > 0) {
+					for(int itemIndex = 0; itemIndex < itemArray.length();itemIndex++) {
+						Object itemOb = itemArray.get(itemIndex);
+						EniItem eniItem = new EniItem();
+						if(itemOb instanceof JSONObject) {
+							itemJsonOb = (JSONObject)itemOb;
+							eniItem = getItemModel(itemJsonOb);
+						}
+						listItem.add(eniItem);
+					}
+				}
+				EniWeight eniWeight = new EniWeight();
+                JSONObject weightOb = jsonOb.getJSONObject("weight");
+                weightValue = getDoubleDataFromJsonOb("value", weightOb); 
+                weightUnit = getStringDataFromJsonOb("units", weightOb);
+                eniWeight.setValue(weightValue);
+                eniWeight.setUnits(weightUnit);
+                // insuranceOptions
+                InsuranceOptions insuranceOption = new InsuranceOptions();
+                JSONObject insuranceOptions = jsonOb.getJSONObject("insuranceOptions");
+                insuranceOptionprovider = getStringDataFromJsonOb("provider", insuranceOptions);
+                insuranceOptioninsureShipment = getBooleanDataFromJsonOb("insureShipment", insuranceOptions);
+                insuranceOptioninsuredValue = getDoubleDataFromJsonOb("insuredValue", insuranceOptions);
+                insuranceOption.setProvider(insuranceOptionprovider);
+                insuranceOption.setInsureShipment(insuranceOptioninsureShipment);
+                insuranceOption.setInsuredValue(insuranceOptioninsuredValue);
+                // internationOptions
+                InternationalOptions internationalOption = new InternationalOptions();
+                JSONObject internationalOptionsOb = jsonOb.getJSONObject("internationalOptions");
+                contents = getStringDataFromJsonOb("contents",internationalOptionsOb);
+                nonDelivery = getStringDataFromJsonOb("nonDelivery", internationalOptionsOb);
+                JSONArray custItemArr = new JSONArray();
+                try{
+                	custItemArr = internationalOptionsOb.getJSONArray("customsItems");
+                }catch(Exception ex) {
+                	_logger.error(ex);
+                }
+                
+                ArrayList<CustomsItem> custItem = new ArrayList<CustomsItem>();
+                if(custItemArr.length() > 0) {
+                	for(int custItemIndex = 0; custItemIndex < custItemArr.length(); custItemIndex++) {
+                    	Object custItemOb = custItemArr.get(custItemIndex);
+                    	if(custItemOb instanceof JSONObject) {
+                    		
+                    		JSONObject custItemJsonOb = (JSONObject)custItemOb;
+                    		internationalOptioncustomsItemId = getIntegerDataFromJsonOb("customsItemId", custItemJsonOb);
+                    		internationalOptiondescription = getStringDataFromJsonOb("description", custItemJsonOb);
+                    		internationalOptionquantity = getIntegerDataFromJsonOb("quantity", custItemJsonOb);
+                    		internationalOptionvalue = getDoubleDataFromJsonOb("value", custItemJsonOb);
+                    		internationalOptionharmonizedTariffCode = getStringDataFromJsonOb("harmonizedTariffCode", custItemJsonOb);
+                    		internationalOptioncountryOfOrigin = getStringDataFromJsonOb("countryOfOrigin", custItemJsonOb);
+                    		CustomsItem internationalOptioncustomsItem = new CustomsItem();
+                    		internationalOptioncustomsItem.setCustomsItemId(internationalOptioncustomsItemId);
+                    		internationalOptioncustomsItem.setDescription(internationalOptiondescription);
+                    		internationalOptioncustomsItem.setQuantity(internationalOptionquantity);
+                    		internationalOptioncustomsItem.setValue(internationalOptionvalue);
+                    		internationalOptioncustomsItem.setHarmonizedTariffCode(internationalOptionharmonizedTariffCode);
+                    		internationalOptioncustomsItem.setCountryOfOrigin(internationalOptioncountryOfOrigin);
+                    		custItem.add(internationalOptioncustomsItem);
+                    	}
+                    }
+                }
+                internationalOption.setContents(contents);
+                internationalOption.setNonDelivery(nonDelivery);
+                internationalOption.setCustomsItems(custItem);
+                // advancedOptions
+                AdvancedOptions advancedOptions = new AdvancedOptions();
+                JSONObject advancedOptionsOb = jsonOb.getJSONObject("advancedOptions");
+                advancedOptionswarehouseId = getIntegerDataFromJsonOb("warehouseId", advancedOptionsOb);
+                advancedOptionsnonMachinable = getBooleanDataFromJsonOb("nonMachinable", advancedOptionsOb);
+                advancedOptionssaturdayDelivery = getBooleanDataFromJsonOb("saturdayDelivery", advancedOptionsOb);
+                advancedOptionscontainsAlcohol = getBooleanDataFromJsonOb("containsAlcohol", advancedOptionsOb);
+                advancedOptionsmergedOrSplit = getBooleanDataFromJsonOb("mergedOrSplit", advancedOptionsOb);
+                advancedOptionsmergedIds = getStringDataFromJsonOb("mergedIds", advancedOptionsOb);
+                advancedOptionsparentId = getStringDataFromJsonOb("parentId", advancedOptionsOb);
+                advancedOptionsstoreId = getIntegerDataFromJsonOb("storeId", advancedOptionsOb);
+                advancedOptionscustomField1 = getStringDataFromJsonOb("customField1", advancedOptionsOb);
+                advancedOptionscustomField2 = getStringDataFromJsonOb("customField2", advancedOptionsOb);
+                advancedOptionscustomField3 = getStringDataFromJsonOb("customField3", advancedOptionsOb);
+                advancedOptionssource = getStringDataFromJsonOb("source", advancedOptionsOb);
+                advancedOptionsbillToParty = getStringDataFromJsonOb("billToParty", advancedOptionsOb);
+                advancedOptionsbillToAccount = getStringDataFromJsonOb("billToAccount", advancedOptionsOb);
+                advancedOptionsbillToPostalCode = getStringDataFromJsonOb("billToPostalCode", advancedOptionsOb);
+                advancedOptionsbillToCountryCode = getStringDataFromJsonOb("billToCountryCode", advancedOptionsOb);
+                advancedOptionsbillToMyOtherAccount = getStringDataFromJsonOb("billToMyOtherAccount", advancedOptionsOb);
+
+                advancedOptions.setWarehouseId(advancedOptionswarehouseId);
+                advancedOptions.setNonMachinable(advancedOptionsnonMachinable);
+                advancedOptions.setSaturdayDelivery(advancedOptionssaturdayDelivery);
+                advancedOptions.setContainsAlcohol(advancedOptionscontainsAlcohol);
+                advancedOptions.setMergedOrSplit(advancedOptionsmergedOrSplit);
+                //advancedOptions.setMergedIds(advancedOptionsmergedIds);
+                advancedOptions.setParentId(advancedOptionsparentId);
+                advancedOptions.setStoreId(advancedOptionsstoreId);
+                advancedOptions.setCustomField1(advancedOptionscustomField1);
+                advancedOptions.setCustomField2(advancedOptionscustomField2);
+                advancedOptions.setCustomField3(advancedOptionscustomField3);
+                advancedOptions.setSource(advancedOptionssource);
+                advancedOptions.setBillToParty(advancedOptionsbillToParty);
+                advancedOptions.setBillToAccount(advancedOptionsbillToAccount);
+                advancedOptions.setBillToPostalCode(advancedOptionsbillToPostalCode);
+                advancedOptions.setBillToCountryCode(advancedOptionsbillToCountryCode);
+                advancedOptions.setBillToMyOtherAccount(advancedOptionsbillToMyOtherAccount);
+                
+                eniOrder.setOrderId(null);
+                eniOrder.setOrderNumber(orderNumber);
+                eniOrder.setOrderKey(orderKey);
+                eniOrder.setOrderDate(orderDate);
+                eniOrder.setCreateDate(createDate);
+                eniOrder.setModifyDate(modifyDate);
+                eniOrder.setPaymentDate(paymentDate);
+                eniOrder.setShipByDate(listOrder);
+                eniOrder.setOrderStatus(orderStatus);
+                eniOrder.setCustomerId(customerId);
+                eniOrder.setCustomerUsername(customerUsername);
+                eniOrder.setCustomerEmail(customerEmail);
+                eniOrder.setBillTo(billto);
+                eniOrder.setShipTo(shipTo);
+				eniOrder.setItems(listItem);
+				eniOrder.setOrderTotal(orderTotal);
+				eniOrder.setAmountPaid(amountPaid);
+				eniOrder.setTaxAmount(taxAmount);
+				eniOrder.setShippingAmount(shippingAmount);
+				eniOrder.setCustomerNotes(customerNotes);
+				eniOrder.setInternalNotes(internalNotes);
+				eniOrder.setGift(gift);
+				eniOrder.setGiftMessage(giftMessage);
+				eniOrder.setPaymentMethod(paymentMethod);
+				eniOrder.setRequestedShippingService(requestedShippingService);
+				eniOrder.setCarrierCode(carrierCode);
+				eniOrder.setServiceCode(serviceCode);
+				eniOrder.setPackageCode(packageCode);
+				eniOrder.setConfirmation(confirmation);
+				eniOrder.setShipDate(shipDate);
+				eniOrder.setHoldUntilDate(holdUntilDate);
+				eniOrder.setWeight(eniWeight);
+				eniOrder.setDimensions(dimensions);
+				eniOrder.setInsuranceOptions(insuranceOption);
+				eniOrder.setInternationalOptions(internationalOption);
+				eniOrder.setAdvancedOptions(advancedOptions);
+				eniOrder.setTagIds(tagIds);
+				eniOrder.setUserId(userId);
+				eniOrder.setExternallyFulfilled(externallyFulfilled);
+				eniOrder.setExternallyFulfilledBy(externallyFulfilledBy);
+				eniOrder.setLabelMessages(labelMessages);
+			
+			}
+			listOrder.add(eniOrder);
+		}
+		
+		responseModel.setOrders(listOrder);
+		return responseModel;
+	}
+	private EniItem getItemModel(JSONObject itemJsonOb) {
+		EniItem eniItem = new EniItem();
+		//orderItemId = getIntegerDataFromJsonOb("orderItemId", itemJsonOb);
+		Object itemOb = itemJsonOb.get("orderItemId");
+		if(itemOb !=null ) {
+		orderItemId = itemOb.toString();
+		}
+		lineItemKey = getStringDataFromJsonOb(" lineItemKey", itemJsonOb);
+		sku = getStringDataFromJsonOb("sku", itemJsonOb);
+		name = getStringDataFromJsonOb("name", itemJsonOb);
+		imageUrl = getStringDataFromJsonOb(" imageUrl", itemJsonOb);
+		itemshippingAmount = getDoubleDataFromJsonOb("shippingAmount", itemJsonOb);
+		warehouseLocation = getStringDataFromJsonOb("warehouseLocation", itemJsonOb);
+		productId = getIntegerDataFromJsonOb("productId", itemJsonOb);
+		fulfillmentSku = getStringDataFromJsonOb("fulfillmentSku", itemJsonOb);
+		adjustment = getBooleanDataFromJsonOb("adjustment", itemJsonOb);
+		upc = getStringDataFromJsonOb("upc", itemJsonOb);
+		createDate = getStringDataFromJsonOb("createDate", itemJsonOb);
+		modifyDate = getStringDataFromJsonOb("modifyDate", itemJsonOb);
+		quantity = getIntegerDataFromJsonOb("quantity", itemJsonOb);
+		unitPrice = getDoubleDataFromJsonOb("unitPrice", itemJsonOb);
+		itemtaxAmount = getDoubleDataFromJsonOb("taxAmount", itemJsonOb);
+
+		eniItem.setOrderItemId(orderItemId);
+		eniItem.setLineItemKey(lineItemKey);
+		eniItem.setSku(sku);
+		eniItem.setName(name);
+		eniItem.setImageUrl(imageUrl);
+		eniItem.setShippingAmount(itemshippingAmount);
+		eniItem.setWarehouseLocation(warehouseLocation);
+		eniItem.setProductId(productId);
+		eniItem.setFulfillmentSku(fulfillmentSku);
+		eniItem.setAdjustment(adjustment);
+		eniItem.setUpc(upc);
+		eniItem.setCreateDate(createDate);
+		eniItem.setModifyDate(modifyDate);
+		eniItem.setQuantity(quantity);
+		eniItem.setUnitPrice(unitPrice);
+		eniItem.setTaxAmount(itemtaxAmount);
+		return eniItem;
+	}
+	private String getStringDataFromJsonOb(String objectName, JSONObject orgResponse ) {
+		String obValue = null;
+		try {
+		 obValue = orgResponse.getString(objectName);
+		}catch(JSONException ex) {
+			/*
+			 * _logger.error("Can't convert"+objectName+"to String"); ex.printStackTrace();
+			 */
+			return obValue;
+		}
+		return obValue;
+	}
+	private boolean getBooleanDataFromJsonOb(String objectName, JSONObject orgResponse ) {
+		Boolean obValue = null;
+		try {
+			obValue = orgResponse.getBoolean(objectName);
+		}catch(JSONException ex) {
+			return obValue;
+		}
+		return obValue;
+		
+	}
+	private BigDecimal getDecimalDataFromJsonOb(String objectName, JSONObject orgResponse) {
+		BigDecimal obValue =  null;
+		try {
+		 obValue = orgResponse.getBigDecimal(objectName);
+		} catch (JSONException ex) {
+			
+			_logger.error("Can't convert"+objectName+"to Bigdecimal");
+			ex.printStackTrace();
+			return obValue;
+		}
+		return obValue;
+	}
+	private int getIntegerDataFromJsonOb(String objectName, JSONObject orgResponse) {
+		int obValue = 0;
+		try {
+			obValue = orgResponse.getInt(objectName);
+		}catch(JSONException ex) {
+			_logger.error("Can't convert"+objectName+"to Integer",ex);
+			return obValue;
+		}
+		return obValue;
+	}
+	private Double getDoubleDataFromJsonOb(String objectName, JSONObject orgResponse) {
+	 double obValue = 0;
+	 try {
+		 obValue = orgResponse.getDouble(objectName);
+	 }catch(JSONException ex) {
+		 _logger.error("Can't convert"+objectName+"to Double");
+		 return obValue;
+	 }
+	 return obValue;
+	}
+	protected String integerToString(int intValue, String obName) {
+		String stringValue = null;
+		try {
+			stringValue = String.valueOf(intValue);
+		}catch(Exception ex) {
+			_logger.error("can't convert"+obName+"to String");
+			//ex.printStackTrace();
+			return stringValue;
+		}
+		return stringValue;
+	}
+	protected BigDecimal doubleToBigDecimal(Double doubleValue, String obName) {
+		BigDecimal bigdecimalValue = null;
+		try {
+			bigdecimalValue = BigDecimal.valueOf(doubleValue);
+		}catch(Exception ex){
+			_logger.error("can't convert"+obName+"to BigDecimal");
+			//ex.printStackTrace();
+			return bigdecimalValue;
+		}
+		return bigdecimalValue;
+	}
+	protected BigDecimal integerToBigdecimal(int integerValue, String obName) {
+		BigDecimal bigdecimalValue = null;
+		try {
+			bigdecimalValue = BigDecimal.valueOf(integerValue);
+		}catch(Exception ex){
+			_logger.error("can't convert"+obName+"to integer");
+			ex.printStackTrace();
+			return bigdecimalValue;
+		}
+		return bigdecimalValue;
+	}
+	protected String getOrderStatus(String orderStatus) {
+		if(orderStatus == null || orderStatus.length() == 0) {
+			_logger.error("Order status is null");
+		}
+		if("complete".equals(orderStatus)) {
+			orderStatus ="FULFILLED";
+		}
+		return orderStatus.toUpperCase();
+	}
+	protected String getStoreIdFromOrderNumber(String orderNumber) {
+		String storeId = "";
+		if(orderNumber!=null && orderNumber.length() > 4) {
+			storeId = orderNumber.substring(0,4);
+		}else {
+			_logger.error("Can't get StoreId from order number: "+orderNumber);
+		}
+		return storeId;
+	}
+	protected boolean validateOrderStatus(String orderStatus) {
+		if(orderStatus.equalsIgnoreCase("complete")||orderStatus.equalsIgnoreCase("canceled")||orderStatus.equalsIgnoreCase("processing")) {
+			return true;
+		}
+		return false;
+	}
+}
