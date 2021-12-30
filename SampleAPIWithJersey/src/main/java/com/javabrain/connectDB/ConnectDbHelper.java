@@ -1,6 +1,9 @@
 package com.javabrain.connectDB;
 
 import java.sql.Connection;
+import java.sql.DriverManager;
+
+import com.javabrain.readProperties.ReadProperties;
 
 public class ConnectDbHelper {
 	private static volatile ConnectDbHelper instance;
@@ -19,10 +22,17 @@ public class ConnectDbHelper {
 		Connection conn_ =null;
 		try {
 			Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-		} catch (ClassNotFoundException e) {
+		
+		ReadProperties properties = new ReadProperties();
+		String userDB = properties.getUserDB();
+		String urlDB = properties.getUrlDB();
+		String password = properties.getPasswordDB();
+		conn_ = DriverManager.getConnection(urlDB,userDB,password);
+		} catch (Exception ex) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
+			ex.printStackTrace();
 		}
 		return conn_;
 	}
+	
 }
