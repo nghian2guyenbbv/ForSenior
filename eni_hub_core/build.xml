@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project default="build" name="Create Order Hub Core jar file">
+	<!--this file was created by Eclipse Runnable JAR Export Wizard-->
+	<!--ANT 1.7 is required                                        -->
+	<!--define folder properties-->
+	<property name="dir.buildfile" value="." />
+	<property name="dir.workspace" value="${dir.buildfile}/.." />
+	<property name="dir.jarfile" value="${dir.buildfile}/tool" />
+	<property name="project.name.jar" value="eni_hub_core" />
+	<property name="dir.jar" value="${dir.buildfile}/dist/${project.name.jar}.jar" />
+	<property name="dir.output" value="${dir.workspace}/EniIntegrationHub/WebContent/WEB-INF/lib" />
+	
+	<patternset id="libraries.patternset" >		
+		<include name="/eni_hub_core/lib/*.jar"/>		
+	</patternset>
+	
+
+	<target name="build" depends="java.compile" >		
+			<copy file="${dir.jar}" todir="${dir.output}"/>
+	</target>
+	
+</project>
